@@ -1,0 +1,790 @@
+---
+title: "Iris dataset; examples of various classifiers"
+output: html_document
+---
+
+##Preliminary steps. Library loading
+
+```{r library.setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+##set the working directory
+setwd("~//Dropbox//Statistics\ DTC\ 2019\ Module\ Teachers//Deep\ Learning\ and\ the\ OMICS//Practical")
+
+##load all the required libraries; elegant implementation to test if the libraries are installed.
+if(!require(ggplot2)){install.packages("ggplot2")}
+library(ggplot2)
+
+if(!require(readr)){install.packages("readr")}
+library(readr)
+
+if(!require(gridExtra)){install.packages("gridExtra")}
+library(gridExtra)
+
+if(!require(grid)){install.packages("grid")}
+library(grid)
+
+if(!require(plyr)){install.packages("plyr")}
+library(plyr)
+
+if(!require(dplyr)){install.packages("dplyr")}
+library(dplyr)
+
+if(!require(reshape2)){install.packages("reshape2")}
+library(reshape2)
+
+if(!require(neuralnet)){install.packages("neuralnet")}
+library(neuralnet)
+
+if(!require(nnet)){install.packages("nnet")}
+library(nnet)
+
+if(!require(caTools)){install.packages("caTools")}
+library(caTools)
+
+if(!require(GGally)){install.packages("GGally")}
+library(GGally)
+
+if(!require(e1071)){install.packages("e1071")}
+library(e1071)
+
+if(!require(SOMbrero)){install.packages("SOMbrero")}
+library(SOMbrero)
+
+if(!require(kohonen)){install.packages("kohonen")}
+library(kohonen)
+
+if(!require(C50)){install.packages("C50")}
+library(C50)
+
+if(!require(tree)){install.packages("tree")}
+library(tree)
+
+if(!require(randomForest)){install.packages("randomForest")}
+library(randomForest)
+
+```
+
+## The IRIS dataset
+From the iris manual page:
+
+The famous (Fisher’s or Anderson’s) Iris data set, first presented by Fisher in 1936 (http://archive.ics.uci.edu/ml/datasets/Iris), gives the measurements in centimeters of the variables sepal length and width and petal length and width, respectively, for 50 flowers from each of 3 species of iris. The species are Iris setosa, versicolor, and virginica. One class is linearly separable from the other two; the latter are not linearly separable from each other.
+The data base contains the following attributes:
+1). sepal length in cm
+2). sepal width in cm
+3). petal length in cm
+4). petal width in cm
+5). classes:
+- Iris Setosa
+- Iris Versicolour
+- Iris Virginica
+
+```{r iris.overview}
+library(datasets)
+data(iris)      ##loads the dataset, which can be accessed under the variable name iris
+summary(iris)   ##presents the 5 figure summary of the dataset
+str(iris)       ##presents the structure of the iris dataframe
+```
+
+## Exploring the data
+Density & Frequency analyses using Histogram
+```{r iris.overview.plot2}
+# Sepal length 
+HistSl <- ggplot(data=iris, aes(x=Sepal.Length))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Species)) + 
+  xlab("Sepal Length (cm)") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Length")+
+  geom_vline(data=iris, aes(xintercept = mean(Sepal.Length)),linetype="dashed",color="grey")
+
+# Sepal width
+HistSw <- ggplot(data=iris, aes(x=Sepal.Width)) +
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Species)) + 
+  xlab("Sepal Width (cm)") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Sepal Width")+
+  geom_vline(data=iris, aes(xintercept = mean(Sepal.Width)),linetype="dashed",color="grey")
+
+# Petal length
+HistPl <- ggplot(data=iris, aes(x=Petal.Length))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Species)) + 
+  xlab("Petal Length (cm)") +  
+  ylab("Frequency") + 
+  theme(legend.position="none")+
+  ggtitle("Histogram of Petal Length")+
+  geom_vline(data=iris, aes(xintercept = mean(Petal.Length)),
+             linetype="dashed",color="grey")
+
+# Petal width
+HistPw <- ggplot(data=iris, aes(x=Petal.Width))+
+  geom_histogram(binwidth=0.2, color="black", aes(fill=Species)) + 
+  xlab("Petal Width (cm)") +  
+  ylab("Frequency") + 
+  theme(legend.position="right" )+
+  ggtitle("Histogram of Petal Width")+
+  geom_vline(data=iris, aes(xintercept = mean(Petal.Width)),linetype="dashed",color="grey")
+
+# Plot all visualizations
+grid.arrange(HistSl + ggtitle(""),
+             HistSw + ggtitle(""),
+             HistPl + ggtitle(""),
+             HistPw  + ggtitle(""),
+             nrow = 2,
+             top = textGrob("Iris Frequency Histogram", 
+                            gp=gpar(fontsize=15))
+)
+
+```
+
+Notice the shape of the data, most attributes exhibit a normal distribution. 
+You can see the measurements of very small flowers in the Petal width and length column.
+
+We can review the density distribution of each attribute broken down by class value. 
+Like the scatterplot matrix, the density plot by class can help see the separation of classes. 
+It can also help to understand the overlap in class values for an attribute.
+
+```{r plot2}
+DhistPl <- ggplot(iris, aes(x=Petal.Length, colour=Species, fill=Species)) +
+  geom_density(alpha=.3) +
+  geom_vline(aes(xintercept=mean(Petal.Length),  colour=Species),linetype="dashed",color="grey", size=1)+
+  xlab("Petal Length (cm)") +  
+  ylab("Density")+
+  theme(legend.position="none")
+
+DhistPw <- ggplot(iris, aes(x=Petal.Width, colour=Species, fill=Species)) +
+  geom_density(alpha=.3) +
+  geom_vline(aes(xintercept=mean(Petal.Width),  colour=Species),linetype="dashed",color="grey", size=1)+
+  xlab("Petal Width (cm)") +  
+  ylab("Density")
+
+DhistSw <- ggplot(iris, aes(x=Sepal.Width, colour=Species, fill=Species)) +
+  geom_density(alpha=.3) +
+  geom_vline(aes(xintercept=mean(Sepal.Width),  colour=Species), linetype="dashed",color="grey", size=1)+
+  xlab("Sepal Width (cm)") +  
+  ylab("Density")+
+  theme(legend.position="none")
+
+DhistSl <- ggplot(iris, aes(x=Sepal.Length, colour=Species, fill=Species)) +
+  geom_density(alpha=.3) +
+  geom_vline(aes(xintercept=mean(Sepal.Length),  
+  colour=Species),linetype="dashed", color="grey", size=1)+
+  xlab("Sepal Length (cm)") +  
+  ylab("Density")+
+  theme(legend.position="none")
+
+# Plot all density visualizations
+grid.arrange(DhistSl + ggtitle(""),
+             DhistSw  + ggtitle(""),
+             DhistPl + ggtitle(""),
+             DhistPw  + ggtitle(""),
+             nrow = 2,
+             top = textGrob("Iris Density Plot", 
+                            gp=gpar(fontsize=15))
+)
+```
+
+We can also visualize the data using the violin plots. 
+They are similar to the Box Plots but they allow the illustration of the number of points at a particular value by the width of the shapes. 
+We can also include the marker for the median and a box for the interquartile range.
+
+```{r plot3}
+VpSl <-  ggplot(iris, aes(Species, Sepal.Length, fill=Species)) + 
+        geom_violin(aes(color = Species), trim = T)+
+        scale_y_continuous("Sepal Length", breaks= seq(0,30, by=.5))+
+        geom_boxplot(width=0.1)+
+        theme(legend.position="none")
+
+VpSw <-  ggplot(iris, aes(Species, Sepal.Width, fill=Species)) + 
+        geom_violin(aes(color = Species), trim = T)+
+        scale_y_continuous("Sepal Width", breaks= seq(0,30, by=.5))+
+        geom_boxplot(width=0.1)+
+        theme(legend.position="none")
+
+VpPl <-  ggplot(iris, aes(Species, Petal.Length, fill=Species)) + 
+        geom_violin(aes(color = Species), trim = T)+
+        scale_y_continuous("Petal Length", breaks= seq(0,30, by=.5))+
+        geom_boxplot(width=0.1)+
+        theme(legend.position="none")
+
+VpPw <-  ggplot(iris, aes(Species, Petal.Width, fill=Species)) + 
+        geom_violin(aes(color = Species), trim = T)+
+        scale_y_continuous("Petal Width", breaks= seq(0,30, by=.5))+
+        geom_boxplot(width=0.1)+
+        labs(title = "Iris Box Plot", x = "Species")
+
+# Plot all visualizations
+grid.arrange(VpSl  + ggtitle(""),
+             VpSw  + ggtitle(""),
+             VpPl + ggtitle(""),
+             VpPw + ggtitle(""),
+             nrow = 2,
+             top = textGrob("Sepal and Petal Violin Plot", 
+                            gp=gpar(fontsize=15))
+)
+```
+
+Yet another way to combine violin plots and scatter plots is illustrated below:
+```{r violin.scatter}
+exploratory_iris <- melt(iris)
+exploratory_iris %>%
+  ggplot(aes(x = factor(variable), y = value)) +
+  geom_violin() +
+  geom_jitter(height = 0, width = 0.1, aes(colour = Species), alpha = 0.7) +
+  theme_minimal()
+```
+
+Now let's create a scatterplot of petal lengths versus petal widths with the color & shape by species. 
+There is also a regression line with a 95% confidence band.
+Notice the petal length of the setosa is clearly a differenciated cluster so it will be a good predictor for ML.
+```{r plot4}
+ggplot(data = iris, aes(x = Petal.Length, y = Petal.Width))+
+  xlab("Petal Length")+
+  ylab("Petal Width") +
+  geom_point(aes(color = Species,shape=Species))+
+  geom_smooth(method='lm')+
+  ggtitle("Petal Length vs Width")
+
+
+# Here is a similar plot with more details on the regression line.
+library(car)
+scatterplot(iris$Petal.Length,iris$Petal.Width)
+```
+
+And the summary of it all can be obtained using the following function:
+```{r all.summary}
+ggpairs(iris, ggplot2::aes(colour = Species, alpha = 0.4))
+```
+
+## Classification using decision trees
+Even if we already know the classes for the 150 instances of irises, it could be interesting to create a model that predicts the species from the petal and sepal width and length. One model that is easy to create and understand is a decision tree, which can be created with the C5.0 package.
+
+```{r decisionTree}
+input <- iris[,1:4]
+output <- iris[,5]
+model1 <- C5.0(input, output, control = C5.0Control(noGlobalPruning = TRUE,minCases=1))
+summary(model1)
+plot(model1, main="C5.0 Decision Tree - Unpruned, min=1")
+```
+
+We can play with the parameters of the classifier to see better/simpler/more complete/more complex trees. Here's a simpler one:
+
+
+```{r decisionTree2}
+model2 <- C5.0(input, output, control = C5.0Control(noGlobalPruning = FALSE))
+plot(model2, main="C5.0 Decision Tree - Pruned")
+plot(model2, type='simple')
+
+summary(model2)
+
+#We can "zoom into" the usage of features for creation of the model:
+C5imp(model2,metric='usage')
+```
+
+Now I have a model. Can we predict the class from the numerical attributes?
+```{r decisionTree_predict}
+newcases <- iris[c(1:3,51:53,101:103),]
+newcases
+
+predicted <- predict(model2, newcases, type="class")
+predicted
+```
+
+
+##Random Forests
+
+Random forests are a way of averaging multiple deep decision trees, trained on different parts of the same training set, with the goal of overcoming over-fitting problem of individual decision tree.
+
+In other words, random forests are an ensemble learning method for classification and regression that operate by constructing a lot of decision trees at training time and outputting the class that is the mode of the classes output by individual trees.
+
+#What is Overfitting?
+Explaining your training data instead of finding patterns that generalize is what overfitting is. In other words, your model learns the training data by heart instead of learning the patterns which prevent it from being able to generalized to the test data. It means your model fits well to training dataset but fails to the validation dataset.
+
+Decision tree is encountered with over-fitting problem and ignorance of a variable in case of small sample size and large p-value. Whereas, random forests are a type of recursive partitioning method particularly well-suited to small sample size and large p-value problems.
+
+Random forest comes at the expense of a some loss of interpretability, but generally greatly boosts the performance of the final model.
+
+How random forest works
+Each tree is grown as follows:
+
+1. Random Record Selection : Each tree is trained on roughly 2/3rd of the total training data (exactly 63.2%) . Cases are drawn at random with replacement from the original data. This sample will be the training set for growing the tree.
+
+2. Random Variable Selection : Some predictor variables (say, m) are selected at random out of all the predictor variables and the best split on these m is used to split the node.
+By default, m is square root of the total number of all predictors for classification. For regression, m is the total number of all predictors divided by 3.
+The value of m is held constant during the forest growing.
+
+Note : In a standard tree, each split is created after examining every variable and picking the best split from all the variables.
+
+3. For each tree, using the leftover (36.8%) data, calculate the misclassification rate - out of bag (OOB) error rate. Aggregate error from all trees to determine overall OOB error rate for the classification. If we grow 200 trees then on average a record will be OOB for about .37*200=74 trees.
+
+4. Each tree gives a classification on leftover data (OOB), and we say the tree "votes" for that class. The forest chooses the classification having the most votes over all the trees in the forest. For a binary dependent variable, the vote will be YES or NO, count up the YES votes. This is the RF score and the percent YES votes received is the predicted probability. In regression case, it is average of dependent variable.
+
+For example, suppose we fit 500 trees, and a case is out-of-bag in 200 of them:
+ - 160 trees votes class 1
+-  40 trees votes class 2
+
+In this case, RF score is class1. Probability for that case would be 0.8 which is 160/200. Similarly, it would be an average of target variable for regression problem.
+
+What is random in 'Random Forest'?
+
+'Random' refers to mainly two process - 1. random observations to grow each tree and 2. random variables selected for splitting at each node. See the detailed explanation in the previous section.
+
+Important Point :
+Random Forest does not require split sampling method to assess accuracy of the model. It performs internal validation as 2-3rd of available training data is used to grow each tree and the remaining one-third portion of training data always used to calculate out-of bag error to assess model performance.
+Pruning
+
+In random forest, each tree is fully grown and not pruned. In other words, it is recommended not to prune while growing trees for random forest.
+
+Preparing Data for Random Forest 
+
+1. Imbalance Data set
+
+A data set is class-imbalanced if one class contains significantly more samples than the other. In other words, non-events have very large number of records than events in dependent variable.
+
+In such cases, it is challenging to create an appropriate testing and training data sets, given that most classifiers are built with the assumption that the test data is drawn from the same distribution as the training data.
+
+Presenting imbalanced data to a classifier will produce undesirable results such as a much lower performance on the testing than on the training data. To deal with this problem, you can do undersampling of non-events.
+
+Undersampling
+It means down-sizing the non-events by removing observations at random until the dataset is balanced.
+
+2. Random forest is affected by multicollinearity but not by outlier problem.
+
+3. Impute missing values within random forest as proximity matrix as a measure
+
+The forest error rate depends on two things:
+
+1. The correlation between any two trees in the forest. Increasing the correlation increases the forest error rate.
+
+2. The strength of each individual tree in the forest. A tree with a low error rate is a strong classifier. Increasing the strength of the individual trees decreases the forest error rate.
+Reducing mtry ( Number of random variables used in each tree) reduces both the correlation and the strength. Increasing it increases both. Somewhere in between is an "optimal" range of mtry - usually quite wide. Using the oob error rate a value of mtry in the range can quickly be found. This is the only adjustable parameter to which random forests is somewhat sensitive.
+
+How to fine tune random forest
+
+Two parameters are important in the random forest algorithm:
+Number of trees used in the forest (ntree ) and 
+Number of random variables used in each tree (mtry ).
+
+First set the mtry to the default value (sqrt of total number of all predictors) and search for the optimal ntree value. To find the number of trees that correspond to a stable classifier, we build random forest with different ntree values (100, 200, 300….,1,000). We build 10 RF classifiers for each ntree value, record the OOB error rate and see the number of trees where the out of bag error rate stabilizes and reach minimum.
+
+Find the optimal mtry
+
+There are two ways to find the optimal mtry :
+Apply a similar procedure such that random forest is run 10 times. The optimal number of predictors selected for split is selected for which out of bag error rate stabilizes and reach minimum.
+Experiment with including the (square root of total number of all predictors), (half of this square root value), and (twice of the square root value). And check which mtry returns maximum Area under curve. Thus, for 1000 predictors the number of predictors to select for each node would be 16, 32, and 64 predictors.
+
+Important Feature : Variable Importance
+
+Random forests can be used to rank the importance of variables in a regression or classification problem. 
+Interpretation : MeanDecreaseAccuracy table represents how much removing each variable reduces the accuracy of the model.
+
+Calculation : How Variable Importance works
+For each tree grown in a random forest, calculate number of votes for the correct class in out-of-bag data.
+Now perform random permutation of  a predictor's values (let's say variable-k) in the oob data and then check the number of votes for correct class. By "random permutation of a predictor's values", it means changing the order of values (shuffling).
+Subtract the number of votes for the correct class in the variable-k-permuted data from the number of votes for the correct class in the original oob data. 
+The average of this number over all trees in the forest is the raw importance score for variable k. The score is normalized by taking the standard deviation.
+Variables having large values for this score are ranked as more important. It is because if building a current model without original values of a variable gives worse prediction, it means the variable is important.
+
+```{r rf1}
+ind <- sample(2,nrow(iris),replace=TRUE,prob=c(0.7,0.3))
+trainData <- iris[ind==1,]
+testData <- iris[ind==2,]
+
+iris.rf <- randomForest(Species~.,data=trainData,ntree=100,proximity=TRUE)
+table(predict(iris.rf),trainData$Species)
+
+print(iris.rf)
+#plot(iris.rf)
+
+importance(iris.rf)
+varImpPlot(iris.rf)
+
+iris.pred<-predict(iris.rf,newdata=testData)
+table(iris.pred, testData$Species)
+
+```
+
+##SVMs
+splitting the data into training set and test set
+```{r svm.split}
+my.split = sample.split(iris$Species, SplitRatio = .8)
+training_set = subset(iris, my.split == TRUE)
+test_set = subset(iris, my.split == FALSE)
+
+nrow(training_set)
+```
+
+```{r svm.train}
+training_set[,1:4] = scale(training_set[,1:4])
+test_set[,1:4] = scale(test_set[,1:4])
+
+classifier1 = svm(formula = Species~., data = training_set, type = 'C-classification', kernel = 'radial')
+classifier2 = svm(formula = Species~ Petal.Width + Petal.Length, data = training_set, type = 'C-classification', kernel = 'radial')
+```
+
+
+```{r svm.test}
+test_pred1 = predict(classifier1, type = 'response', newdata = test_set[-5])
+test_pred2 = predict(classifier2, type = 'response', newdata = test_set[-5])
+
+# Making Confusion Matrix
+cm1 = table(test_set[,5], test_pred1)
+cm2 = table(test_set[,5], test_pred2)
+cm1 # Confusion Matrix for all parameters
+cm2 # Confusion Matrix for parameters being Petal Length and Petal Width
+```
+The accuracy for both model looks solid. Also notice that as we had deduced, only Petal Length and Width is important to make this model accurate and our second classifier proves it!
+
+
+```{r svm.plots}
+m2 <- svm(Species~., data = iris)
+plot(m2, iris, Petal.Width ~ Petal.Length,
+     slice = list(Sepal.Width = 3, Sepal.Length = 4))
+
+```
+
+```{r svm.subsets}
+iris.part = subset(iris, Species != 'setosa')
+iris.part$Species = factor(iris.part$Species)
+#iris.part = iris.part[, c(1,2,5)]
+svm.fit = svm(formula=Species~., data=iris.part, type='C-classification', kernel='linear')
+plot(svm.fit, iris.part, Petal.Width ~ Petal.Length, slice = list(Sepal.Width = 3, Sepal.Length = 4))
+```
+
+
+##Self Organising Maps (SOMs)
+A self-organizing map (SOM) is a type of artificial neural network (ANN) that is trained using unsupervised learning to produce a low-dimensional (typically two-dimensional), discretized representation of the input space of the training samples, called a map, and is therefore a method to do dimensionality reduction. Self-organizing maps differ from other artificial neural networks as they apply competitive learning as opposed to error-correction learning (such as backpropagation with gradient descent), and in the sense that they use a neighborhood function to preserve the topological properties of the input space.
+
+The Algorithm:
+
+1. Each node’s weights are initialized.
+2. A vector is chosen at random from the set of training data.
+3. Every node is examined to calculate which one’s weights are most like the input vector. The winning node is commonly known as the Best Matching Unit (BMU).
+4. Then the neighbourhood of the BMU is calculated. The amount of neighbors decreases over time.
+5. The winning weight is rewarded with becoming more like the sample vector. The nighbors also become more like the sample vector. The closer a node is to the BMU, the more its weights get altered and the farther away the neighbor is from the BMU, the less it learns.
+6. Repeat step 2 for N iterations.
+
+Best Matching Unit is a technique which calculates the distance from each weight to the sample vector, by running through all weight vectors. The weight with the shortest distance is the winner. There are numerous ways to determine the distance, however, the most commonly used method is the Euclidean Distance, and that’s what is used in the following implementation.
+
+
+Cons of Kohonen Maps:
+
+1. It does not build a generative model for the data, i.e, the model does not understand how data is created.
+2. It does not behave so gently when using categorical data, even worse for mixed types data.
+3. The time for preparing model is slow, hard to train against slowly evolving data
+
+Example on the Iris dataset
+The first four variables of the data set (that are the numeric variables) are used to map each flower on the SOM grid.
+```{r som.train}
+set.seed(7989)
+# run the SOM algorithm with verbose set to TRUE
+iris.som <- trainSOM(x.data=iris[,1:4], verbose=TRUE, nb.save=5)
+
+iris.som
+
+plot(iris.som, what="energy")
+
+```
+As the energy is registered during the intermediate backups, we can have a look at its evolution.
+
+The clustering component contains the final classification of the dataset. It is a vector with length equal to the number of rows of the input dataset.
+
+```{r som.clustering}
+iris.som$clustering
+
+table(iris.som$clustering)
+
+plot(iris.som, what="obs", type="hitmap")
+```
+
+Clustering interpretation
+Graphics common to observations and prototypes
+NB: in all the following graphics, data are scaled in the preprocessing stage.
+
+Some graphics are shared between observations and prototypes. They allow you to plot the level values, either of the prototypes or of the observation means. In this example these common graphics are plotted for the mean observation values.
+
+```{r som.clustering.plots}
+par(mfrow=c(2,2))
+plot(iris.som, what="obs", type="color", variable=1, print.title=TRUE, 
+     main="Sepal length")
+plot(iris.som, what="obs", type="color", variable=2, print.title=TRUE, 
+     main="Sepal width")
+plot(iris.som, what="obs", type="color", variable=3, print.title=TRUE, 
+     main="Petal length")
+plot(iris.som, what="obs", type="color", variable=4, print.title=TRUE, 
+     main="Petal width")
+
+plot(iris.som, what="obs", type="barplot", print.title=TRUE)
+
+plot(iris.som, what="obs", type="radar", key.loc=c(-0.5,5), mar=c(0,10,2,0))
+```
+
+Empty squares catch the attention: none of the observations are assigned to clusters 4, 9, 14 and 19.
+
+Let us analyse the results for cluster 5 more precisely. On the "color" plots, cluster 5 has the following results: high values for Sepal.Width and low values for all the other variables. These results are also noticeable in the other plots:
+
+Flowers with a long sepal and all the other variables being small are classified in the top left corner of the map. Flowers with large sepals and petals (length and width) are classified in the bottom right corner of the map whereas flowers with small sepal length are classified in the top right corner of the map.
+
+
+```{r som.clustering.plots2}
+plot(iris.som, what="obs", type="boxplot", print.title=TRUE)
+```
+
+In the SOM algorithm, the number of clusters is necessarily close to the number of neurons on the grid (not necessarily equal as some neurons may have no observations assigned to them). This - quite large - number may not suit the original data for a clustering purpose.
+
+A usual way to address clustering with SOM is to perform a hierarchical clustering on the prototypes. This clustering is directly available in the package SOMbrero using the function superClass. To do so, you can first have a quick overview to decide on the number of super clusters which suits your data.
+
+```{r som.dendro}
+my.sc <- superClass(iris.som, k=3)
+summary(my.sc)
+plot(my.sc,plot.var = F)
+```
+
+A similar approach, using the kohonen library in R.
+```{r SOM.kohonen}
+# Change the data frame with training data to a matrix
+# Also center and scale all variables to give them equal importance during
+# the SOM training process. 
+data.train.matrix <- as.matrix(scale(iris[,1:4]))
+# Create the SOM Grid - you generally have to specify the size of the 
+# training grid prior to training the SOM. Hexagonal and Circular 
+# topologies are possible
+som.grid <- somgrid(xdim = 10, ydim=10, topo="hexagonal")
+# Finally, train the SOM, options for the number of iterations,
+# the learning rates, and the neighbourhood are available
+som.model <- som(data.train.matrix, 
+    grid=som.grid, 
+    rlen=100, 
+    alpha=c(0.05,0.01), 
+    keep.data = TRUE)
+
+#Training progress for SOM
+plot(som.model, type="changes")
+plot(som.model, type="count", main="Node Counts")
+```
+
+Neighbour Distance
+Often referred to as the “U-Matrix”, this visualisation is of the distance between each node and its neighbours. Typically viewed with a grayscale palette, areas of low neighbour distance indicate groups of nodes that are similar. Areas with large distances indicate the nodes are much more dissimilar – and indicate natural boundaries between node clusters. The U-Matrix can be used to identify clusters within the SOM map.
+
+```{r}
+# U-matrix visualisation
+plot(som.model, type="dist.neighbours", main = "SOM neighbour distances")
+```
+
+Clustering and Segmentation on top of Self-Organising Map
+Clustering can be performed on the SOM nodes to isolate groups of samples with similar metrics. Manual identification of clusters is completed by exploring the heatmaps for a number of variables and drawing up a “story” about the different areas on the map. An estimate of the number of clusters that would be suitable can be ascertained using a kmeans algorithm and examing for an “elbow-point” in the plot of “within cluster sum of squares”.  The Kohonen package documentation shows how a map can be clustered using hierachical clustering. The results of the clustering can be visualised using the SOM plot function again.
+
+```{r SOM.cluster}
+mydata <- som.model$codes 
+wss <- (nrow(mydata)-1)*sum(apply(mydata[[1]],2,var)) 
+for (i in 2:15) {
+  wss[i] <- sum(kmeans(mydata[[1]], centers=i)$withinss)
+}
+plot(wss)
+
+# Visualising cluster results
+pretty.palette <- c("#1f77b4", '#ff7f0e', '#2ca02c', 
+                     '#d62728', '#9467bd', '#8c564b', '#e377c2')
+## use hierarchical clustering to cluster the codebook vectors
+som.cluster <- cutree(hclust(dist(som.model$codes[[1]])), 3)
+# plot these results:
+plot(som.model, type="mapping", main = "Clusters",
+     bgcol = pretty.palette[som.cluster]) 
+#add.cluster.boundaries(som.model, som.cluster)
+
+
+# get vector with cluster value for each original data sample
+cluster.assignment <- som.cluster[som.model$unit.classif]
+```
+Advantages include:
+
+(1) Intuitive method to develop customer segmentation profiles.
+(2) Relatively simple algorithm, easy to explain results to non-data scientists
+(3) New data points can be mapped to trained model for predictive purposes.
+
+Disadvantages include:
+
+(1) Lack of parallelisation capabilities for VERY large data sets since the training data set is iterative
+(2) It can be difficult to represent very many variables in two dimensional plane
+(3) SOM training requires clean, numeric data which can be hard to get!
+
+
+##Artificial Neural Netowrks
+```{r iris.nnet}
+set.seed(7989)
+size.sample <- 50
+iristrain <- iris[sample(1:nrow(iris), size.sample),] # get a training sample from iris
+nnet.iristrain <- iristrain
+
+# Binarize the categorical output
+nnet.iristrain <- cbind(nnet.iristrain, iristrain$Species == 'setosa')
+nnet.iristrain <- cbind(nnet.iristrain, iristrain$Species == 'versicolor')
+nnet.iristrain <- cbind(nnet.iristrain, iristrain$Species == 'virginica')
+
+names(nnet.iristrain)[6] <- 'setosa'
+names(nnet.iristrain)[7] <- 'versicolor'
+names(nnet.iristrain)[8] <- 'virginica'
+
+head(nnet.iristrain)
+
+nn <- neuralnet(setosa+versicolor+virginica ~ 
+                Sepal.Length+Sepal.Width
+                            +Petal.Length
+                            +Petal.Width,
+                data=nnet.iristrain, 
+                hidden=c(3))
+
+plot(nn)
+```
+
+And checking the accuracy
+
+```{r iris.nnet.acc}
+mypredict <- compute(nn, iris[-5])$net.result
+# Put multiple binary output to categorical output
+maxidx <- function(arr) {
+    return(which(arr == max(arr)))
+}
+idx <- apply(mypredict, c(1), maxidx)
+prediction <- c('setosa', 'versicolor', 'virginica')[idx]
+table(prediction, iris$Species)
+```
+
+##Deep Learning
+
+```{r DL.intro, echo=FALSE}
+if(!require(keras))
+{
+  install.packages("keras")
+  library(keras)
+  install_keras()
+}
+library(keras)
+
+if(!require(caret)){install.packages("caret")}
+library(caret)
+```
+
+From the result of the summary() function in the DataCamp Light chunk above, you see that the Iris data set doesn’t need to be normalized: the Sepal.Length attribute has values that go from 4.3 to 7.9 and Sepal.Width contains values from 2 to 4.4, while Petal.Length’s values range from 1 to 6.9 and Petal.Width goes from 0.1 to 2.5. In other words, all values of all the attributes of the Iris data set are contained within the range of 0.1 and 7.9, which you can consider acceptable.
+
+However, it can still be a good idea to study the effect of normalization on your data; You can even go as far as passing the normalized data to your model to see if there is any effect.
+
+You can make your own function to normalize the iris data; In this case, it’s a min-max normalization function, which linearly transforms your data to the function (x-min)/(max-min). 
+
+```{r DL.normalize}
+normalize <- function(x) {
+  num <- x - min(x)
+  denom <- max(x) - min(x)
+  return (num/denom*10)
+}
+
+# Normalize the `iris` data
+iris_norm <- as.data.frame(lapply(iris[1:4], normalize))
+
+# Return the first part of `iris` 
+head(iris)
+head(iris_norm)
+```
+
+To use the normalize() function from the keras package, you first need to make sure that you’re working with a matrix. As you probably remember from earlier, the characteristic of matrices is that the matrix data elements are of the same basic type; In this case, you have target values that are of type factor, while the rest is all numeric.
+
+```{r DL.test.train}
+# Determine sample size
+ind <- sample(2, nrow(iris), replace=TRUE, prob=c(0.67, 0.33))
+
+# Split the `iris` data
+iris.training <- as.matrix(iris[ind==1, 1:4])
+iris.test <- as.matrix(iris[ind==2, 1:4])
+
+# Split the class attribute
+iris.trainingtarget <- iris[ind==1, 5]
+iris.testtarget <- iris[ind==2, 5]
+
+```
+
+One-Hot Encoding
+You have successfully split your data but there is still one step that you need to go through to start building your model. Can you guess which one?
+
+When you want to model multi-class classification problems with neural networks, it is generally a good practice to make sure that you transform your target attribute from a vector that contains values for each class value to a matrix with a boolean for each class value and whether or not a given instance has that class value or not.
+
+Luckily, the keras package has a to_categorical() function that will do all of this for you; Pass in the iris.trainingtarget and the iris.testtarget to this function and store the result in iris.trainLabels and iris.testLabels:
+
+```{r DL.OHE}
+# One hot encode training target values
+iris.trainLabels <- to_categorical(as.integer(iris.trainingtarget))[,2:4]
+ 
+# One hot encode test target values
+iris.testLabels <- to_categorical(as.integer(iris.testtarget))[,2:4]
+
+# Print out the iris.testLabels to double check the result
+print(iris.testLabels)
+```
+
+Constructing the Model
+To start constructing a model, you should first initialize a sequential model with the help of the keras_model_sequential() function. Then, you’re ready to start modeling.
+
+However, before you begin, it’s a good idea to revisit your original question about this data set: can you predict the species of a certain Iris flower? It’s easier to work with numerical data and you have preprocessed the data and one hot encoded the values of the target variable: a flower is either of type versicolor, setosa or virginica and this is reflected with binary 1 and 0 values.
+
+A type of network that performs well on such a problem is a multi-layer perceptron. This type of neural network is often fully connected. That means that you’re looking to build a fairly simple stack of fully-connected layers to solve this problem. As for the activation functions that you will use, it’s best to use one of the most common ones here for the purpose of getting familiar with Keras and neural networks, which is the relu activation function. This rectifier activation function is used in a hidden layer, which is generally speaking a good practice.
+
+In addition, you also see that the softmax activation function is used in the output layer. You do this because you want to make sure that the output values are in the range of 0 and 1 and may be used as predicted probabilities:
+
+```{r dl2}
+# Initialize a sequential model
+model <- keras_model_sequential() 
+
+# Add layers to the model
+model %>% 
+    layer_dense(units = 8, activation = 'relu', input_shape = c(4)) %>% 
+    layer_dense(units = 3, activation = 'softmax')
+```
+
+```{r dl3}
+# Print a summary of a model
+summary(model)
+
+# Get model configuration
+#get_config(model)
+# Get layer configuration
+#get_layer(model, index = 1)
+
+# List the model's layers
+model$layers
+
+# List the input tensors
+model$inputs
+
+# List the output tensors
+model$outputs
+
+
+# Compile the model
+model %>% compile(
+  loss = 'categorical_crossentropy',
+  optimizer = 'adam',
+  metrics = 'accuracy'
+)
+
+
+# Fit the model 
+model %>% fit(
+  iris.training, 
+  iris.trainLabels, 
+  epochs = 200, 
+  batch_size = 5, 
+  validation_split = 0.2
+)
+
+
+# Store the fitting history in `history` 
+history <- model %>% fit(
+  iris.training, 
+  iris.trainLabels, 
+  epochs = 200,
+  batch_size = 5, 
+  validation_split = 0.2
+)
+
+# Plot the history
+plot(history)
+```

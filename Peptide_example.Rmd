@@ -1,0 +1,64 @@
+---
+title: "Practical_ex1"
+output: html_document
+author: Leon Eyrich Jessen
+
+citation: Jessen2018
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+if(!require(tidyverse)){install.packages("tidyverse")}
+
+# Packages for sequence logos and peptides
+devtools::install_github("omarwagih/ggseqlogo")
+devtools::install_github("leonjessen/PepTools")
+
+library(keras)
+library(tidyverse)
+library(PepTools)
+
+```
+
+Peptide Data
+The input data for this use case was created by generating 1,000,000 random 9-mer peptides by sampling the one-letter code for the 20 amino acids, i.e. ARNDCQEGHILKMFPSTWYV, and then submitting the peptides to MHCI binding prediction using the current state-of-the-art model netMHCpan. Different variants of MHCI exists, so for this case we chose HLA-A*02:01. This method assigns ‘strong binder’ SB, ‘weak binder’ WB or ‘non-binder’ NB to each peptide.
+
+Since n(SB) < n(WB) << n(NB), the data was subsequently balanced by down sampling, such that n(SB) = n(WB) = n(NB) = 7,920. Thus, a data set with a total of 23,760 data points was created. 10% of the data points were randomly assigned as test data and the remainder as train data. It should be noted that since the data set originates from a model, the outcome of this particular use case will be a model of a model. However, netMHCpan is very accurate (96.5% of natural ligands are identified at a very high specificity 98.5%).
+
+In the following each peptide will be encoded by assigning a vector of 20 values, where each value is the probability of the amino acid mutating into 1 of the 20 others as defined by the BLOSUM62 matrix using the pep_encode() function from the PepTools package. This way each peptide is converted to an ‘image’ matrix with 9 rows and 20 columns.
+
+Load the data:
+
+## R Markdown
+```{r chunk1}
+pep_file <- get_file(
+  "ran_peps_netMHCpan40_predicted_A0201_reduced_cleaned_balanced.tsv", 
+  origin = "https://git.io/vb3Xa"
+) 
+pep_dat <- read_tsv(file = pep_file)
+
+pep_dat %>% head(5)
+
+pep_dat %>% group_by(label_chr, data_type) %>% summarise(n = n())
+
+pep_dat %>% filter(label_chr=='SB') %>% pull(peptide) %>% ggseqlogo()
+
+pep_dat %>% filter(label_chr=='SB') %>% head(1) %>% pull(peptide) %>% pep_plot_images
+
+str(pep_encode(c("LLTDAQRIV", "LLTDAQRIV")))
+
+```
+
+Here’s how we transform the data frame into 3-D arrays of training and test data:
+
+```{r chunk3}
+x_train <- pep_dat %>% filter(data_type == 'train') %>% pull(peptide)   %>% pep_encode
+y_train <- pep_dat %>% filter(data_type == 'train') %>% pull(label_num) %>% array
+x_test  <- pep_dat %>% filter(data_type == 'test')  %>% pull(peptide)   %>% pep_encode
+y_test  <- pep_dat %>% filter(data_type == 'test')  %>% pull(label_num) %>% array
+```
+
+
+
+
+
